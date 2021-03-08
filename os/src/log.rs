@@ -9,6 +9,8 @@ fn panic(_info: &PanicInfo) -> ! {
 
 struct Stdout;
 
+pub static MINIMUM_LOG_LEVEL: u8 = 3;
+
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for b in s.as_bytes() {
@@ -73,7 +75,9 @@ pub fn log(level: LogLevel, args: fmt::Arguments) {
 #[macro_export]
 macro_rules! log {
     ($level: expr, $fmt: literal $(, $($arg: tt)+)?) => {
-        log($level, format_args!($fmt $(, $($arg)+)?));
+        if (value_of_log_level($level) >= MINIMUM_LOG_LEVEL) {
+            log($level, format_args!($fmt $(, $($arg)+)?));
+        }
     }
 }
 
@@ -111,9 +115,3 @@ macro_rules! error {
         log!(LogLevel::ERROR, $fmt $(, $($arg)+)?);
     }
 }
-
-// macro_rules! print {
-//     ($fmt: literal $(, $($arg: tt)+)?) => {
-//         $crate::console::print(format_args!($fmt $(, $($arg)+)?));
-//     }
-// }
