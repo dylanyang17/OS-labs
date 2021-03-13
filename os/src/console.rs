@@ -2,11 +2,6 @@ use core::panic::PanicInfo;
 use core::fmt::{self, Write};
 use crate::sbi::console_putchar;
 
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
-}
-
 struct Stdout;
 
 pub static MINIMUM_LOG_LEVEL: u8 = 3;
@@ -20,22 +15,22 @@ impl Write for Stdout {
     }
 }
 
+pub fn print(args: fmt::Arguments) {
+    Stdout.write_fmt(args).unwrap();
+}
+
 #[macro_export]
 macro_rules! print {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        print(format_args!($fmt $(, $($arg)+)?));
+        $crate::console::print(format_args!($fmt $(, $($arg)+)?));
     }
 }
 
 #[macro_export]
 macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
+        $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
     }
-}
-
-pub fn print(args: fmt::Arguments) {
-    Stdout.write_fmt(args).unwrap();
 }
 
 pub enum LogLevel {

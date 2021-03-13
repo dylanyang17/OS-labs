@@ -2,12 +2,19 @@
 #![no_main]
 #![feature(llvm_asm)]
 #![feature(global_asm)]
+#![feature(panic_info_message)]
 
-use crate::sbi::shutdown;
-use crate::log::*;
+#[macro_use]
+mod console;
 
 mod sbi;
-mod log;
+mod batch;
+mod syscall;
+mod trap;
+mod lang_items;
+
+use crate::sbi::shutdown;
+use crate::console::*;
 
 fn clear_bss() {
     extern "C" {
@@ -20,6 +27,7 @@ fn clear_bss() {
 }
 
 global_asm!(include_str!("entry.asm"));
+global_asm!(include_str!("link_app.S"));
 
 #[no_mangle]
 pub fn rust_main() {
