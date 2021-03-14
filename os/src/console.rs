@@ -4,7 +4,7 @@ use crate::sbi::console_putchar;
 
 struct Stdout;
 
-pub static MINIMUM_LOG_LEVEL: u8 = 3;
+pub static MINIMUM_LOG_LEVEL: u8 = 6;
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
