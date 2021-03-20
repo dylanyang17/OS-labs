@@ -1,7 +1,4 @@
-# user/build.py
-
 import os
-import shutil
 
 base_address = 0x80400000
 step = 0x20000
