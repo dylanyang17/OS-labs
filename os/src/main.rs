@@ -3,15 +3,19 @@
 #![feature(llvm_asm)]
 #![feature(global_asm)]
 #![feature(panic_info_message)]
+#![feature(const_in_array_repeat_expressions)]
 
 #[macro_use]
 mod console;
 
 mod sbi;
-mod batch;
 mod syscall;
 mod trap;
 mod lang_items;
+mod config;
+mod loader;
+mod task;
+mod timer;
 
 use crate::sbi::shutdown;
 use crate::console::*;
@@ -32,7 +36,11 @@ global_asm!(include_str!("link_app.S"));
 #[no_mangle]
 pub fn rust_main() {
     clear_bss();
+    println!("[kernel] Hello, world!");
     trap::init();
-    batch::init();
-    batch::run_next_app();
+    loader::load_apps();
+    trap::enable_timer_interrupt();
+    timer::set_next_trigger();
+    task::run_first_task();
+    panic!("Unreachable in rust_main!");
 }
