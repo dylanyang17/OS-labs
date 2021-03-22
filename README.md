@@ -8,4 +8,4 @@
 
 ## 运行
 
-在 os 目录下 `make run` 即可。
+将需要运行的应用程序代码放到 user/src/bin/ 下之后，在 os 目录下 `make run` 即可。
