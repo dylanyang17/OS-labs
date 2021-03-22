@@ -1,6 +1,7 @@
 use crate::task::{
     suspend_current_and_run_next,
     exit_current_and_run_next,
+    set_current_priority,
 };
 use crate::timer::get_time_ms;
 
@@ -20,9 +21,5 @@ pub fn sys_get_time() -> isize {
 }
 
 pub fn sys_set_priority(priority: isize) -> isize {
-    // TODO(yangyr17)
-    if priority < 2 {
-        return -1;
-    }
-    priority
+    set_current_priority(priority)
 }

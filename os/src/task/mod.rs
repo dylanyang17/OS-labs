@@ -2,12 +2,12 @@ mod context;
 mod switch;
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, BIG_STRIDE};
 use crate::loader::{get_num_app, init_app_cx};
 use core::cell::RefCell;
 use lazy_static::*;
 use switch::__switch;
-use task::{TaskControlBlock, TaskStatus};
+use task::{TaskControlBlock, TaskStatus, StrideInfo};
 
 pub use context::TaskContext;
 
@@ -27,7 +27,7 @@ lazy_static! {
     pub static ref TASK_MANAGER: TaskManager = {
         let num_app = get_num_app();
         let mut tasks = [
-            TaskControlBlock { task_cx_ptr: 0, task_status: TaskStatus::UnInit };
+            TaskControlBlock { task_cx_ptr: 0, task_status: TaskStatus::UnInit, stride_info: StrideInfo { stride: 0, pass: BIG_STRIDE / 16} };
             MAX_APP_NUM
         ];
         for i in 0..num_app {
@@ -72,17 +72,27 @@ impl TaskManager {
     fn find_next_task(&self) -> Option<usize> {
         let inner = self.inner.borrow();
         let current = inner.current_task;
-        (current + 1..current + self.num_app + 1)
-            .map(|id| id % self.num_app)
-            .find(|id| {
-                inner.tasks[*id].task_status == TaskStatus::Ready
-            })
+        // (current + 1..current + self.num_app + 1)
+        //     .map(|id| id % self.num_app)
+        //     .find(|id| {
+        //         inner.tasks[*id].task_status == TaskStatus::Ready
+        //     })
+        let mut ret = None;
+        for i in 0..self.num_app {
+            if inner.tasks[i].task_status == TaskStatus::Ready {
+                if ret == None || inner.tasks[ret.unwrap() as usize].stride_info < inner.tasks[i].stride_info {
+                    ret = Some(i);
+                }
+            }
+        }
+        ret
     }
 
     fn run_next_task(&self) {
         if let Some(next) = self.find_next_task() {
             let mut inner = self.inner.borrow_mut();
             let current = inner.current_task;
+            inner.tasks[current].stride_info.take_a_step();
             inner.tasks[next].task_status = TaskStatus::Running;
             inner.current_task = next;
             let current_task_cx_ptr2 = inner.tasks[current].get_task_cx_ptr2();
@@ -96,6 +106,18 @@ impl TaskManager {
             }
         } else {
             panic!("All applications completed!");
+        }
+    }
+
+    fn set_current_priority(&self, priority: isize) -> isize {
+        if priority < 2 {  // 处理非法优先权
+            return -1;
+        }
+        else {
+            let mut inner = self.inner.borrow_mut();
+            let current = inner.current_task;
+            inner.tasks[current].stride_info.pass = BIG_STRIDE / priority as usize;
+            priority
         }
     }
 }
@@ -124,4 +146,8 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next() {
     mark_current_exited();
     run_next_task();
+}
+
+pub fn set_current_priority(priority: isize) -> isize {
+    TASK_MANAGER.set_current_priority(priority)
 }
