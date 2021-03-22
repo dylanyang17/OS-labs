@@ -80,7 +80,7 @@ impl TaskManager {
         let mut ret = None;
         for i in 0..self.num_app {
             if inner.tasks[i].task_status == TaskStatus::Ready {
-                if ret == None || inner.tasks[ret.unwrap() as usize].stride_info < inner.tasks[i].stride_info {
+                if ret == None || inner.tasks[ret.unwrap() as usize].stride_info > inner.tasks[i].stride_info {
                     ret = Some(i);
                 }
             }
