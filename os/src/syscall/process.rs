@@ -18,3 +18,11 @@ pub fn sys_yield() -> isize {
 pub fn sys_get_time() -> isize {
     get_time_ms() as isize
 }
+
+pub fn sys_set_priority(priority: isize) -> isize {
+    // TODO(yangyr17)
+    if priority < 2 {
+        return -1;
+    }
+    priority
+}
