@@ -17,6 +17,9 @@ mod config;
 mod loader;
 mod task;
 mod timer;
+mod mm;
+
+extern crate alloc;
 
 use crate::sbi::shutdown;
 use crate::console::*;
