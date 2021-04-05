@@ -1,28 +1,30 @@
 #![no_std]
 #![no_main]
-#![feature(llvm_asm)]
 #![feature(global_asm)]
+#![feature(llvm_asm)]
 #![feature(panic_info_message)]
 #![feature(const_in_array_repeat_expressions)]
 #![feature(alloc_error_handler)]
 
+extern crate alloc;
+
+#[macro_use]
+extern crate bitflags;
+
 #[macro_use]
 mod console;
-
+mod lang_items;
 mod sbi;
 mod syscall;
 mod trap;
-mod lang_items;
-mod config;
 mod loader;
+mod config;
 mod task;
 mod timer;
 mod mm;
 
-extern crate alloc;
-
-use crate::sbi::shutdown;
-use crate::console::*;
+global_asm!(include_str!("entry.asm"));
+global_asm!(include_str!("link_app.S"));
 
 fn clear_bss() {
     extern "C" {
@@ -34,15 +36,15 @@ fn clear_bss() {
     });
 }
 
-global_asm!(include_str!("entry.asm"));
-global_asm!(include_str!("link_app.S"));
-
 #[no_mangle]
-pub fn rust_main() {
+pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
+    mm::init();
+    println!("[kernel] back to world!");
+    mm::remap_test();
     trap::init();
-    loader::load_apps();
+    //trap::enable_interrupt();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
     task::run_first_task();
