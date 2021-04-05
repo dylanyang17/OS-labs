@@ -132,8 +132,8 @@ impl PageTable {
 }
 
 pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize, flags_needed: PTEFlags) -> Option<Vec<&'static mut [u8]>> {
-    // flags_needed only check URWX
-    let flags_needed = flags_needed & PTEFlags::R & PTEFlags::W & PTEFlags::X & PTEFlags::U;
+    // flags_needed only check URWXV
+    let flags_needed = flags_needed & PTEFlags::R & PTEFlags::W & PTEFlags::X & PTEFlags::U & PTEFlags::V;
     let page_table = PageTable::from_token(token);
     let mut start = ptr as usize;
     let end = start + len;

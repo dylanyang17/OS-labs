@@ -27,30 +27,3 @@ pub fn sys_mmap(start: usize, len: usize, prot: usize) -> i32 {
 pub fn sys_munmap(start: usize, len: usize) -> i32 {
     munmap(start, len)
 }
-
-/*
-    #[allow(unused)]
-    pub fn mmap(&mut self, start: usize, len: usize, prot: usize) -> i32 {
-        let len = ((len - 1) / PAGE_SIZE + 1) * PAGE_SIZE;
-        if start % PAGE_SIZE != 0 || (prot & 7) == 0 || (prot & (!7)) != 0 {
-            -1
-        }
-        for vpn in start/PAGE_SIZE..(start+len)/PAGE_SIZE {
-            if let Some(pte) = page_table.find_pte(vpn.into()) {
-                return -1;
-            }
-        }
-        for vpn in start/PAGE_SIZE..(start+len)/PAGE_SIZE {
-            self.map(vpn, frame_alloc())
-        }
-        len as i32
-    }
-    #[allow(unused)]
-    pub fn munmap(&mut self, start: usize, len: usize) -> i32 {
-        let len = ((len - 1) / PAGE_SIZE + 1) * PAGE_SIZE;
-        if start % PAGE_SIZE != 0 {
-            -1
-        }
-        -1
-    }
- */

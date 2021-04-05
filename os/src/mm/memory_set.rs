@@ -62,6 +62,7 @@ impl MemorySet {
     #[allow(unused)]
     pub fn mmap(&mut self, start: usize, len: usize, prot: usize) -> i32 {
         let len = ((len - 1) / PAGE_SIZE + 1) * PAGE_SIZE;
+        // println!("0x{:x} 0x{:x} 0x{:x}", start, len, prot);
         if start % PAGE_SIZE != 0 || (prot & 7) == 0 || (prot & (!7)) != 0 {
             return -1;
         }
@@ -69,12 +70,13 @@ impl MemorySet {
         let end_vpn = (start+len)/PAGE_SIZE;
         for vpn in start_vpn..end_vpn {
             if let Some(pte) = self.page_table.find_pte(vpn.into()) {
-                return -1;
+                if pte.is_valid() {
+                    return -1;
+                }
             }
         }
         self.push(MapArea::new(
             start.into(),
-
             (start+len).into(),
             MapType::Framed,
             MapPermission::from_bits((prot<<1) as u8).unwrap() | MapPermission::U,
@@ -87,7 +89,18 @@ impl MemorySet {
         if start % PAGE_SIZE != 0 {
             return -1;
         }
+        for i in 0..self.areas.len() {
+            if self.areas[i].vpn_range.get_start() == VirtAddr::from(start).floor() &&
+                self.areas[i].vpn_range.get_end() == VirtAddr::from(start+len).ceil() {
+                self.remove(i);
+                return len as i32;
+            }
+        }
         -1
+    }
+    fn remove(&mut self, index: usize) {
+        self.areas[index].unmap(&mut self.page_table);
+        self.areas.remove(index);
     }
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
