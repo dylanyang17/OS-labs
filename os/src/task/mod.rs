@@ -174,3 +174,15 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 pub fn set_current_priority(priority: isize) -> isize {
     TASK_MANAGER.set_current_priority(priority)
 }
+
+pub fn mmap(start: usize, len: usize, prot: usize) -> i32 {
+    let mut inner = TASK_MANAGER.inner.borrow_mut();
+    let current = inner.current_task;
+    inner.tasks[current].memory_set.mmap(start, len, prot)
+}
+
+pub fn munmap(start: usize, len: usize) -> i32 {
+    let mut inner = TASK_MANAGER.inner.borrow_mut();
+    let current = inner.current_task;
+    inner.tasks[current].memory_set.munmap(start, len)
+}

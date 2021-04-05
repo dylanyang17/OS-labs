@@ -12,5 +12,5 @@ _num_app:
     .global app_0_end
     .align 3
 app_0_start:
-    .incbin "../user/target/riscv64gc-unknown-none-elf/release/ch2t_write0"
+    .incbin "../user/target/riscv64gc-unknown-none-elf/release/ch4_mmap3"
 app_0_end:

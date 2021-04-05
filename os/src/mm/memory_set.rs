@@ -59,6 +59,36 @@ impl MemorySet {
             permission,
         ), None);
     }
+    #[allow(unused)]
+    pub fn mmap(&mut self, start: usize, len: usize, prot: usize) -> i32 {
+        let len = ((len - 1) / PAGE_SIZE + 1) * PAGE_SIZE;
+        if start % PAGE_SIZE != 0 || (prot & 7) == 0 || (prot & (!7)) != 0 {
+            return -1;
+        }
+        let start_vpn = start/PAGE_SIZE;
+        let end_vpn = (start+len)/PAGE_SIZE;
+        for vpn in start_vpn..end_vpn {
+            if let Some(pte) = self.page_table.find_pte(vpn.into()) {
+                return -1;
+            }
+        }
+        self.push(MapArea::new(
+            start.into(),
+
+            (start+len).into(),
+            MapType::Framed,
+            MapPermission::from_bits((prot<<1) as u8).unwrap() | MapPermission::U,
+        ), None);
+        len as i32
+    }
+    #[allow(unused)]
+    pub fn munmap(&mut self, start: usize, len: usize) -> i32 {
+        let len = ((len - 1) / PAGE_SIZE + 1) * PAGE_SIZE;
+        if start % PAGE_SIZE != 0 {
+            return -1;
+        }
+        -1
+    }
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
