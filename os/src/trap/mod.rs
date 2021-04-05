@@ -55,6 +55,8 @@ pub fn trap_handler() -> ! {
             cx.sepc += 4;
             cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
+        Trap::Exception(Exception::LoadFault) |
+        Trap::Exception(Exception::LoadPageFault) |
         Trap::Exception(Exception::StoreFault) |
         Trap::Exception(Exception::StorePageFault) => {
             println!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.", stval, cx.sepc);
