@@ -8,8 +8,8 @@ pub static MINIMUM_LOG_LEVEL: u8 = 6;
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        for b in s.as_bytes() {
-            console_putchar(*b as usize);
+        for c in s.chars() {
+            console_putchar(c as usize);
         }
         Ok(())
     }

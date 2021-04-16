@@ -1,7 +1,7 @@
 use super::{PhysAddr, PhysPageNum};
 use alloc::vec::Vec;
 use spin::Mutex;
-use crate::config::{MEMORY_END, PAGE_SIZE};
+use crate::config::MEMORY_END;
 use lazy_static::*;
 use core::fmt::{self, Debug, Formatter};
 
@@ -48,6 +48,7 @@ impl StackFrameAllocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
+        println!("last {} Physical Frames.", self.end - self.current);
     }
 }
 impl FrameAllocator for StackFrameAllocator {
