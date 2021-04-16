@@ -153,6 +153,15 @@ impl TaskControlBlock {
         task_control_block
         // ---- release parent PCB lock
     }
+    pub fn spawn(&self, elf_data: &[u8]) -> Arc<TaskControlBlock> {
+        // ---- hold parent PCB lock
+        let mut parent_inner = self.acquire_inner_lock();
+        let task_control_block = Arc::new(TaskControlBlock::new(elf_data));
+        // add child
+        parent_inner.children.push(task_control_block.clone());
+        task_control_block
+        // ---- release parent PCB lock
+    }
     pub fn getpid(&self) -> usize {
         self.pid.0
     }

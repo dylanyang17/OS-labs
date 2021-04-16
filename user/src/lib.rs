@@ -49,6 +49,7 @@ pub fn getpid() -> isize { sys_getpid() }
 pub fn fork() -> isize { sys_fork() }
 pub fn exec(path: &str) -> isize { sys_exec(path) }
 pub fn set_priority(priority: isize) -> isize{ sys_set_priority(priority) }
+pub fn spawn(path: &str) -> isize { sys_spawn(path) }
 
 pub fn mmap(start: usize, len: usize, prot: usize) -> isize {
     sys_mmap(start, len, prot)

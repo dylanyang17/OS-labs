@@ -87,7 +87,10 @@ pub fn add_initproc() {
 }
 
 pub fn set_current_priority(priority: isize) -> isize {
-    0
+    if priority <= 1 {
+        return -1
+    }
+    priority
     // TASK_MANAGER.set_current_priority(priority)  暂时删去 stride 算法
 }
 
