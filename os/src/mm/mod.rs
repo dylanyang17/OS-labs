@@ -17,6 +17,7 @@ pub use page_table::{
 };
 pub use memory_set::{MemorySet, KERNEL_SPACE, MapPermission};
 pub use memory_set::remap_test;
+pub use page_table::UserBuffer;
 
 pub fn init() {
     heap_allocator::init_heap();
