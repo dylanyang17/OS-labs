@@ -13,6 +13,7 @@ use manager::fetch_task;
 use lazy_static::*;
 use manager::TASK_MANAGER;
 
+pub use manager::find_task;
 pub use context::TaskContext;
 pub use processor::{
     run_tasks,

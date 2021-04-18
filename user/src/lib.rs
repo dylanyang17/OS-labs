@@ -95,3 +95,11 @@ pub fn sleep(period_ms: usize) {
 pub fn pipe(pipe_fd: &mut [usize]) -> isize { sys_pipe(pipe_fd) }
 
 pub fn close(fd: usize) -> isize { sys_close(fd) }
+
+pub fn mail_read(buf: &mut [u8]) -> isize {
+    sys_mailread(buf.as_mut_ptr() as *mut u8, buf.len())
+}
+
+pub fn mail_write(pid: usize, buf: &[u8]) -> isize {
+    sys_mailwrite(pid, buf.as_ptr() as *mut u8, buf.len())
+}

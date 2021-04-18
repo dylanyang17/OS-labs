@@ -6,7 +6,7 @@ use super::{PidHandle, pid_alloc, KernelStack};
 use alloc::sync::{Weak, Arc};
 use alloc::vec;
 use spin::{Mutex, MutexGuard};
-use crate::fs::{File, Stdout, Stdin};
+use crate::fs::{File, Stdout, Stdin, MailBox};
 use alloc::vec::Vec;
 
 pub struct TaskControlBlock {
@@ -27,6 +27,7 @@ pub struct TaskControlBlockInner {
     pub children: Vec<Arc<TaskControlBlock>>,
     pub exit_code: i32,
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+    pub mail_box: MailBox,
 }
 
 impl TaskControlBlockInner {
@@ -92,7 +93,8 @@ impl TaskControlBlock {
                     Some(Arc::new(Stdout)),
                     // 2 -> stderr
                     Some(Arc::new(Stdout)),
-                ]
+                ],
+                mail_box: MailBox::new(),
             }),
         };
         // prepare TrapContext in user space
@@ -170,6 +172,7 @@ impl TaskControlBlock {
                 children: Vec::new(),
                 exit_code: 0,
                 fd_table: new_fd_table,
+                mail_box: MailBox::new(),
             }),
         });
         // add child

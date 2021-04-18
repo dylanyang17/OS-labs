@@ -1,11 +1,10 @@
-use crate::task::{suspend_current_and_run_next, exit_current_and_run_next, current_task, current_user_token, add_task, set_current_priority, mmap, munmap};
+use crate::task::{suspend_current_and_run_next, exit_current_and_run_next, current_task, current_user_token, add_task, set_current_priority, mmap, munmap, find_task};
 use crate::timer::get_time_ms;
-use crate::mm::{
-    translated_str,
-    translated_refmut,
-};
+use crate::mm::{translated_str, translated_refmut, translated_byte_buffer, UserBuffer, PTEFlags};
 use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
+use crate::fs::{Mail};
+use core::cmp::min;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -114,4 +113,53 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         -2
     }
     // ---- release current PCB lock automatically
+}
+
+pub fn sys_mailread(buf: *mut u8, len: usize) -> isize {
+    let len = min(len, 256);
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    if task.acquire_inner_lock().mail_box.is_empty() {
+        -1
+    } else if len == 0{
+        0
+    } else {
+        if let Some(buffers) = translated_byte_buffer(token, buf, len, PTEFlags::empty()) {
+            if let Some(mail) = task.acquire_inner_lock().mail_box.get() {
+                mail.to_buf(UserBuffer::new(buffers), len)
+            } else {
+                -1
+            }
+        } else {
+            -1
+        }
+    }
+}
+
+pub fn sys_mailwrite(pid: usize, buf: *mut u8, len: usize) -> isize {
+    let len = min(len, 256);
+    let mut task = current_task().unwrap();
+    let current_token = task.acquire_inner_lock().get_user_token();
+    if task.pid.0 != pid {
+        if let Some(other_task) = find_task(pid) {
+            task = other_task;
+        } else {
+            return -1;
+        }
+    }
+    if task.acquire_inner_lock().mail_box.is_full() {
+        -1
+    } else if len == 0 {
+        0
+    } else {
+        if let Some(buffers) = translated_byte_buffer(current_token, buf, len, PTEFlags::empty()) {
+            if let Some(mail) = Mail::from_buf(UserBuffer::new(buffers), len) {
+                task.acquire_inner_lock().mail_box.put(mail)
+            } else {
+                -1
+            }
+        } else {
+            -1
+        }
+    }
 }
