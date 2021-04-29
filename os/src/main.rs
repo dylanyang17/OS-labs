@@ -23,6 +23,7 @@ mod task;
 mod timer;
 mod mm;
 mod fs;
+mod drivers;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));

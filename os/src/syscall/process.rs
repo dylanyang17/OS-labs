@@ -1,10 +1,12 @@
 use crate::task::{suspend_current_and_run_next, exit_current_and_run_next, current_task, current_user_token, add_task, set_current_priority, mmap, munmap, find_task};
 use crate::timer::get_time_ms;
-use crate::mm::{translated_str, translated_refmut, translated_byte_buffer, UserBuffer, PTEFlags};
+use crate::mm::{translated_str, translated_refmut, translated_byte_buffer, UserBuffer, PTEFlags, translated_ref};
 use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
-use crate::fs::{Mail};
+use crate::fs::{Mail, OpenFlags, open_file};
 use core::cmp::min;
+use alloc::vec::Vec;
+use alloc::string::String;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -50,13 +52,25 @@ pub fn sys_fork() -> isize {
     new_pid as isize
 }
 
-pub fn sys_exec(path: *const u8) -> isize {
+pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
     let path = translated_str(token, path);
-    if let Some(data) = get_app_data_by_name(path.as_str()) {
+    let mut args_vec: Vec<String> = Vec::new();
+    loop {
+        let arg_str_ptr = *translated_ref(token, args);
+        if arg_str_ptr == 0 {
+            break;
+        }
+        args_vec.push(translated_str(token, arg_str_ptr as *const u8));
+        unsafe { args = args.add(1); }
+    }
+    if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
+        let all_data = app_inode.read_all();
         let task = current_task().unwrap();
-        task.exec(data);
-        0
+        let argc = args_vec.len();
+        task.exec(all_data.as_slice(), args_vec);
+        // return argc because cx.x[10] will be covered with it later
+        argc as isize
     } else {
         -1
     }

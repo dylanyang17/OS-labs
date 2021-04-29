@@ -9,13 +9,19 @@ pub mod console;
 mod syscall;
 mod lang_items;
 
+extern crate alloc;
+#[macro_use]
+extern crate bitflags;
+
 use syscall::*;
 use buddy_system_allocator::LockedHeap;
+use alloc::vec::Vec;
 
 const USER_HEAP_SIZE: usize = 16384;
 
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 pub use console::{STDIN, STDOUT};
+
 #[global_allocator]
 static HEAP: LockedHeap = LockedHeap::empty();
 
@@ -26,17 +32,31 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     unsafe {
         HEAP.lock()
             .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
-    exit(main());
+    let mut v: Vec<&'static str> = Vec::new();
+    for i in 0..argc {
+        let str_start = unsafe {
+            ((argv + i * core::mem::size_of::<usize>()) as *const usize).read_volatile()
+        };
+        let len = (0usize..).find(|i| unsafe {
+            ((str_start + *i) as *const u8).read_volatile() == 0
+        }).unwrap();
+        v.push(
+            core::str::from_utf8(unsafe {
+                core::slice::from_raw_parts(str_start as *const u8, len)
+            }).unwrap()
+        );
+    }
+    exit(main(argc, v.as_slice()));
 }
 
 #[linkage = "weak"]
 #[no_mangle]
-fn main() -> i32 {
+fn main(argc: usize, argv: &[&str]) -> i32 {
     panic!("Cannot find main!");
 }
 
@@ -50,6 +70,7 @@ bitflags! {
     }
 }
 
+pub fn dup(fd: usize) -> isize { sys_dup(fd) }
 pub fn open(path: &str, flags: OpenFlags) -> isize { sys_open(path, flags.bits) }
 pub fn read(fd: usize, buf: &mut [u8]) -> isize { sys_read(fd, buf) }
 pub fn write(fd: usize, buf: &[u8]) -> isize { sys_write(fd, buf) }
@@ -58,7 +79,7 @@ pub fn yield_() -> isize { sys_yield() }
 pub fn get_time() -> isize { sys_get_time() }
 pub fn getpid() -> isize { sys_getpid() }
 pub fn fork() -> isize { sys_fork() }
-pub fn exec(path: &str) -> isize { sys_exec(path) }
+pub fn exec(path: &str, args: &[*const u8]) -> isize { sys_exec(path, args) }
 pub fn set_priority(priority: isize) -> isize{ sys_set_priority(priority) }
 pub fn spawn(path: &str) -> isize { sys_spawn(path) }
 
