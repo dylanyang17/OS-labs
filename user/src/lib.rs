@@ -19,6 +19,8 @@ use alloc::vec::Vec;
 
 const USER_HEAP_SIZE: usize = 16384;
 
+const AT_FDCWD: isize = -100;
+
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 pub use console::{STDIN, STDOUT};
 
@@ -71,7 +73,9 @@ bitflags! {
 }
 
 pub fn dup(fd: usize) -> isize { sys_dup(fd) }
-pub fn open(path: &str, flags: OpenFlags) -> isize { sys_open(path, flags.bits) }
+pub fn unlinkat(path: *const u8) -> isize { sys_unlinkat(AT_FDCWD, 0, path) }
+pub fn linkat(oldpath: *const u8, newpath: *const u8) -> isize { sys_linkat(AT_FDCWD, oldpath, AT_FDCWD, newpath, 0) }
+pub fn open(path: &str, flags: OpenFlags) -> isize { sys_open(AT_FDCWD, path, flags.bits, OpenFlags::RDWR as u32) }
 pub fn read(fd: usize, buf: &mut [u8]) -> isize { sys_read(fd, buf) }
 pub fn write(fd: usize, buf: &[u8]) -> isize { sys_write(fd, buf) }
 pub fn exit(exit_code: i32) -> ! { sys_exit(exit_code); }

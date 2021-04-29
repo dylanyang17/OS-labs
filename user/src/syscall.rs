@@ -1,4 +1,6 @@
 const SYSCALL_DUP: usize = 24;
+const SYSCALL_UNLINKAT: usize = 35;
+const SYSCALL_LINKAT: usize = 37;
 const SYSCALL_OPEN: usize = 56;
 const SYSCALL_CLOSE: usize = 57;
 const SYSCALL_PIPE: usize = 59;
@@ -35,8 +37,16 @@ pub fn sys_dup(fd: usize) -> isize {
     syscall(SYSCALL_DUP, [fd, 0, 0, 0, 0])
 }
 
-pub fn sys_open(path: &str, flags: u32) -> isize {
-    syscall(SYSCALL_OPEN, [path.as_ptr() as usize, flags as usize, 0, 0, 0])
+pub fn sys_unlinkat(dirfd: isize, path: *const u8, flags: usize) -> isize {
+    syscall(SYSCALL_UNLINKAT, [dirfd as usize, path.as_str() as usize, flags, 0, 0])
+}
+
+pub fn sys_linkat(olddirfd: isize, oldpath: *const u8, newdirfd: isize, newpath: *const u8, flags: usize) -> isize {
+    syscall(SYSCALL_LINKAT, [olddirfd as usize, oldpath.as_str() as usize, newdirfd as usize, newpath.as_str() as usize, flags])
+}
+
+pub fn sys_open(dirfd: isize, path: &str, flags: u32, mode: u32) -> isize {
+    syscall(SYSCALL_OPEN, [dirfd as usize, path.as_ptr() as usize, flags as usize, mode, 0])
 }
 
 pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
