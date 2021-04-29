@@ -1,7 +1,6 @@
 use crate::task::{suspend_current_and_run_next, exit_current_and_run_next, current_task, current_user_token, add_task, set_current_priority, mmap, munmap, find_task};
 use crate::timer::get_time_ms;
 use crate::mm::{translated_str, translated_refmut, translated_byte_buffer, UserBuffer, PTEFlags, translated_ref};
-use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
 use crate::fs::{Mail, OpenFlags, open_file};
 use core::cmp::min;
@@ -79,9 +78,11 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 pub fn sys_spawn(path: *const u8) -> isize {
     let token = current_user_token();
     let path = translated_str(token, path);
-    if let Some(data) = get_app_data_by_name(path.as_str()) {
+
+    if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
+        let all_data = app_inode.read_all();
         let current = current_task().unwrap();
-        let new_task = current.spawn(data);
+        let new_task = current.spawn(all_data.as_slice());
         let new_pid = new_task.pid.0;
         add_task(new_task);
         new_pid as isize

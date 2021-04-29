@@ -6,7 +6,6 @@ mod processor;
 mod pid;
 
 use crate::fs::{open_file, OpenFlags};
-use crate::loader::{get_app_data_by_name};
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 use alloc::sync::Arc;
