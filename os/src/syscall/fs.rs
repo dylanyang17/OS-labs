@@ -1,7 +1,7 @@
 use crate::mm::{translated_byte_buffer, PTEFlags, translated_refmut, UserBuffer, translated_str};
 use crate::task::{current_user_token, suspend_current_and_run_next, current_task, FdTableEntry};
 use crate::sbi::console_getchar;
-use crate::fs::{make_pipe, OpenFlags, open_file, Stat, OSInode, File, StatMode, count_link};
+use crate::fs::{make_pipe, OpenFlags, open_file, Stat, OSInode, File, StatMode, count_link, linkat, unlinkat};
 use alloc::sync::Arc;
 
 const FD_STDIN: usize = 0;
@@ -115,8 +115,7 @@ pub fn sys_dup(fd: usize) -> isize {
 pub fn sys_unlinkat(dirfd: isize, path: *const u8, flags: usize) -> isize {
     let token = current_user_token();
     let path = translated_str(token, path);
-
-    -1
+    unlinkat(path.as_str())
 }
 
 pub fn sys_linkat(olddirfd: isize, oldpath: *const u8, newdirfd: isize, newpath: *const u8, flags: usize) -> isize {
@@ -126,8 +125,7 @@ pub fn sys_linkat(olddirfd: isize, oldpath: *const u8, newdirfd: isize, newpath:
     if oldpath == newpath {
         return -1;
     }
-
-    -1
+    linkat(oldpath.as_str(), newpath.as_str())
 }
 
 pub fn sys_fstat(fd: isize, st: *mut Stat) -> isize {

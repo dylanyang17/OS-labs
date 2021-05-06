@@ -125,6 +125,19 @@ pub fn count_link(inode_id: usize) -> usize {
     ROOT_INODE.count_link(inode_id)
 }
 
+pub fn unlinkat(path: &str) -> isize {
+    ROOT_INODE.unlink(path)
+}
+
+pub fn linkat(oldpath: &str, newpath: &str) -> isize {
+    if let Some(inode) = ROOT_INODE.find(oldpath) {
+        let inode_id = inode.get_inode_id();
+        ROOT_INODE.link(newpath, inode_id as u32)
+    } else {
+        -1
+    }
+}
+
 pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let (readable, writable) = flags.read_write();
     if flags.contains(OpenFlags::CREATE) {
