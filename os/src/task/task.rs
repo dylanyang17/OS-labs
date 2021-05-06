@@ -18,6 +18,20 @@ pub struct TaskControlBlock {
     inner: Mutex<TaskControlBlockInner>,
 }
 
+pub struct FdTableEntry {
+    pub file: Arc<dyn File + Send + Sync>,
+    pub inode: u32
+}
+
+impl FdTableEntry {
+    pub fn new(file :Arc<dyn File + Send + Sync>, inode: u32) -> Self {
+        Self {
+            file,
+            inode
+        }
+    }
+}
+
 pub struct TaskControlBlockInner {
     pub trap_cx_ppn: PhysPageNum,
     pub base_size: usize,
@@ -27,7 +41,7 @@ pub struct TaskControlBlockInner {
     pub parent: Option<Weak<TaskControlBlock>>,
     pub children: Vec<Arc<TaskControlBlock>>,
     pub exit_code: i32,
-    pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+    pub fd_table: Vec<Option<FdTableEntry>>,
     pub mail_box: MailBox,
 }
 
@@ -89,11 +103,11 @@ impl TaskControlBlock {
                 exit_code: 0,
                 fd_table: vec![
                     // 0 -> stdin
-                    Some(Arc::new(Stdin)),
+                    Some(FdTableEntry::new(Arc::new(Stdin), u32::MAX)),
                     // 1 -> stdout
-                    Some(Arc::new(Stdout)),
+                    Some(FdTableEntry::new(Arc::new(Stdout), u32::MAX)),
                     // 2 -> stderr
-                    Some(Arc::new(Stdout)),
+                    Some(FdTableEntry::new(Arc::new(Stdout), u32::MAX)),
                 ],
                 mail_box: MailBox::new(),
             }),
@@ -178,10 +192,10 @@ impl TaskControlBlock {
         // push a goto_trap_return task_cx on the top of kernel stack
         let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return());
         // copy fd table
-        let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
+        let mut new_fd_table: Vec<Option<FdTableEntry>> = Vec::new();
         for fd in parent_inner.fd_table.iter() {
-            if let Some(file) = fd {
-                new_fd_table.push(Some(file.clone()));
+            if let Some(ent) = fd {
+                new_fd_table.push(Some(FdTableEntry::new(ent.file.clone(), ent.inode)));
             } else {
                 new_fd_table.push(None);
             }

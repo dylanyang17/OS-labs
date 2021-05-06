@@ -63,6 +63,9 @@ impl OSInode {
             }),
         }
     }
+    pub fn get_inode_id(&self) -> usize {
+        self.inner.lock().inode.get_inode_id()
+    }
     pub fn read_all(&self) -> Vec<u8> {
         let mut inner = self.inner.lock();
         let mut buffer = [0u8; 512];
@@ -116,6 +119,10 @@ impl OpenFlags {
             (true, true)
         }
     }
+}
+
+pub fn count_link(inode_id: usize) -> usize {
+    ROOT_INODE.count_link(inode_id)
 }
 
 pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {

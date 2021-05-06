@@ -25,6 +25,7 @@ pub use processor::{
 };
 pub use manager::add_task;
 pub use pid::{PidHandle, pid_alloc, KernelStack};
+pub use task::FdTableEntry;
 
 pub fn suspend_current_and_run_next() {
     // There must be an application running.

@@ -178,26 +178,3 @@ pub fn sys_mailwrite(pid: usize, buf: *mut u8, len: usize) -> isize {
         }
     }
 }
-
-pub fn sys_unlinkat(dirfd: isize, path: *const u8, flags: usize) -> isize {
-    let token = current_user_token();
-    let path = translated_str(token, path);
-
-    -1
-}
-
-pub fn sys_linkat(olddirfd: isize, oldpath: *const u8, newdirfd: isize, newpath: *const u8, flags: usize) -> isize {
-    let token = current_user_token();
-    let oldpath = translated_str(token, oldpath);
-    let newpath = translated_str(token, newpath);
-    if oldpath == newpath {
-        return -1;
-    }
-
-    -1
-}
-
-pub fn sys_fstat(fd: isize, st: *mut Stat) -> isize {
-
-    -1
-}
