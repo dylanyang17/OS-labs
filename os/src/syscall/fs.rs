@@ -66,7 +66,7 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
     0
 }
 
-pub fn sys_open(dirfd: isize, path: *const u8, flags: u32, mode: u32) -> isize {
+pub fn sys_open(dirfd: usize, path: *const u8, flags: u32, mode: u32) -> isize {
     let task = current_task().unwrap();
     let token = current_user_token();
     let path = translated_str(token, path);

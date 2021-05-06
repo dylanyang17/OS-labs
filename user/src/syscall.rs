@@ -45,8 +45,8 @@ pub fn sys_linkat(olddirfd: isize, oldpath: *const u8, newdirfd: isize, newpath:
     syscall(SYSCALL_LINKAT, [olddirfd as usize, oldpath.as_str() as usize, newdirfd as usize, newpath.as_str() as usize, flags])
 }
 
-pub fn sys_open(dirfd: isize, path: &str, flags: u32, mode: u32) -> isize {
-    syscall(SYSCALL_OPEN, [dirfd as usize, path.as_ptr() as usize, flags as usize, mode, 0])
+pub fn sys_open(dirfd: usize, path: &str, flags: u32, mode: u32) -> isize {
+    syscall(SYSCALL_OPEN, [dirfd, path.as_ptr() as usize, flags as usize, mode, 0])
 }
 
 pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {

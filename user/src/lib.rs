@@ -73,9 +73,9 @@ bitflags! {
 }
 
 pub fn dup(fd: usize) -> isize { sys_dup(fd) }
-pub fn unlinkat(path: *const u8) -> isize { sys_unlinkat(AT_FDCWD, 0, path) }
+pub fn unlinkat(path: *const u8) -> isize { sys_unlinkat(AT_FDCWD, path, 0) }
 pub fn linkat(oldpath: *const u8, newpath: *const u8) -> isize { sys_linkat(AT_FDCWD, oldpath, AT_FDCWD, newpath, 0) }
-pub fn open(path: &str, flags: OpenFlags) -> isize { sys_open(AT_FDCWD, path, flags.bits, OpenFlags::RDWR as u32) }
+pub fn open(path: &str, flags: OpenFlags) -> isize { sys_open(AT_FDCWD as usize, path, flags.bits, OpenFlags::RDWR as u32) }
 pub fn read(fd: usize, buf: &mut [u8]) -> isize { sys_read(fd, buf) }
 pub fn write(fd: usize, buf: &[u8]) -> isize { sys_write(fd, buf) }
 pub fn exit(exit_code: i32) -> ! { sys_exit(exit_code); }
