@@ -13,8 +13,8 @@ use alloc::vec::Vec;
 use spin::{Mutex, MutexGuard};
 
 pub struct Inode {
-    block_id: usize,
-    block_offset: usize,
+    pub block_id: usize,
+    pub block_offset: usize,
     fs: Arc<Mutex<EasyFileSystem>>,
     block_device: Arc<dyn BlockDevice>,
 }
@@ -33,6 +33,10 @@ impl Inode {
             fs,
             block_device,
         }
+    }
+
+    pub fn get_inode_id(&self) -> usize {
+        self.fs.lock().get_inode_id(self.block_id as u32, self.block_offset) as usize
     }
 
     fn read_disk_inode<V>(&self, f: impl FnOnce(&DiskInode) -> V) -> V {
@@ -72,6 +76,29 @@ impl Inode {
             }
         }
         None
+    }
+
+    pub fn count_link(&self, inode_id: usize) -> usize {
+        self.read_disk_inode(|disk_inode| {
+            assert!(disk_inode.is_dir());
+            let file_count = (disk_inode.size as usize) / DIRENT_SZ;
+            let mut dirent = DirEntry::empty();
+            let mut ret = 0;
+            for i in 0..file_count {
+                assert_eq!(
+                    disk_inode.read_at(
+                        DIRENT_SZ * i,
+                        dirent.as_bytes_mut(),
+                        &self.block_device,
+                    ),
+                    DIRENT_SZ,
+                );
+                if dirent.inode_number() == inode_id as u32 {
+                    ret += 1;
+                }
+            }
+            ret
+        })
     }
 
     pub fn find(&self, name: &str) -> Option<Arc<Inode>> {

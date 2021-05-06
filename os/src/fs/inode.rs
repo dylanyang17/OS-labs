@@ -40,12 +40,12 @@ bitflags! {
 pub struct OSInode {
     readable: bool,
     writable: bool,
-    inner: Mutex<OSInodeInner>,
+    pub inner: Mutex<OSInodeInner>,
 }
 
 pub struct OSInodeInner {
     offset: usize,
-    inode: Arc<Inode>,
+    pub inode: Arc<Inode>,
 }
 
 impl OSInode {
