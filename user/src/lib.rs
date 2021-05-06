@@ -72,12 +72,39 @@ bitflags! {
     }
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct Stat {
+    /// 文件所在磁盘驱动器号
+    pub dev: u64,
+    /// inode 文件所在 inode 编号
+    pub ino: u64,
+    /// 文件类型
+    pub mode: StatMode,
+    /// 硬链接数量，初始为1
+    pub nlink: u32,
+    /// 无需考虑，为了兼容性设计
+    pad: [u64; 7],
+}
+
+/// StatMode 定义：
+bitflags! {
+    pub struct StatMode: u32 {
+        const NULL  = 0;
+        /// directory
+        const DIR   = 0o040000;
+        /// ordinary regular file
+        const FILE  = 0o100000;
+    }
+}
+
 pub fn dup(fd: usize) -> isize { sys_dup(fd) }
 pub fn unlinkat(path: *const u8) -> isize { sys_unlinkat(AT_FDCWD, path, 0) }
 pub fn linkat(oldpath: *const u8, newpath: *const u8) -> isize { sys_linkat(AT_FDCWD, oldpath, AT_FDCWD, newpath, 0) }
 pub fn open(path: &str, flags: OpenFlags) -> isize { sys_open(AT_FDCWD as usize, path, flags.bits, OpenFlags::RDWR as u32) }
 pub fn read(fd: usize, buf: &mut [u8]) -> isize { sys_read(fd, buf) }
 pub fn write(fd: usize, buf: &[u8]) -> isize { sys_write(fd, buf) }
+pub fn fstat(fd: isize, st: *mut Stat) -> isize { sys_fstat(fd, st) }
 pub fn exit(exit_code: i32) -> ! { sys_exit(exit_code); }
 pub fn yield_() -> isize { sys_yield() }
 pub fn get_time() -> isize { sys_get_time() }

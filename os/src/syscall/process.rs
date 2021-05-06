@@ -2,7 +2,7 @@ use crate::task::{suspend_current_and_run_next, exit_current_and_run_next, curre
 use crate::timer::get_time_ms;
 use crate::mm::{translated_str, translated_refmut, translated_byte_buffer, UserBuffer, PTEFlags, translated_ref};
 use alloc::sync::Arc;
-use crate::fs::{Mail, OpenFlags, open_file};
+use crate::fs::{Mail, OpenFlags, open_file, Stat};
 use core::cmp::min;
 use alloc::vec::Vec;
 use alloc::string::String;
@@ -193,6 +193,11 @@ pub fn sys_linkat(olddirfd: isize, oldpath: *const u8, newdirfd: isize, newpath:
     if oldpath == newpath {
         return -1;
     }
+
+    -1
+}
+
+pub fn sys_fstat(fd: isize, st: *mut Stat) -> isize {
 
     -1
 }
