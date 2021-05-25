@@ -8,12 +8,13 @@
 pub mod console;
 mod syscall;
 mod lang_items;
+pub mod ch8;
 
 extern crate alloc;
 #[macro_use]
 extern crate bitflags;
 
-use syscall::*;
+pub use syscall::*;
 use buddy_system_allocator::LockedHeap;
 use alloc::vec::Vec;
 
@@ -60,6 +61,19 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
 #[no_mangle]
 fn main(argc: usize, argv: &[&str]) -> i32 {
     panic!("Cannot find main!");
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct TimeVal {
+    pub sec: usize,
+    pub usec: usize,
+}
+
+impl TimeVal {
+    pub fn new() -> Self {
+        TimeVal { sec: 0, usec: 0 }
+    }
 }
 
 bitflags! {
