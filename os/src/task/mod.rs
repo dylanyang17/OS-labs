@@ -53,8 +53,13 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // **** hold current PCB lock
 
     if task.is_inner_locked() {
+        task.force_unlock_inner();  // Note: 可能有问题？
+    }
+
+    if task.is_inner_locked() {
         println!("????");
     }
+
     let mut inner = task.acquire_inner_lock();
     // Change status to Zombie
     inner.task_status = TaskStatus::Zombie;

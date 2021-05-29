@@ -1,5 +1,5 @@
 use crate::mm::{translated_byte_buffer, PTEFlags, translated_refmut, UserBuffer, translated_str};
-use crate::task::{current_user_token, suspend_current_and_run_next, current_task, FdTableEntry};
+use crate::task::{current_user_token, suspend_current_and_run_next, current_task, FdTableEntry, exit_current_and_run_next};
 use crate::sbi::console_getchar;
 use crate::fs::{make_pipe, OpenFlags, open_file, Stat, OSInode, File, StatMode, count_link, linkat, unlinkat};
 use alloc::sync::Arc;
@@ -20,11 +20,13 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         // release Task lock manually to avoid deadlock
         drop(inner);
         if let Some(buffers) = translated_byte_buffer(token, buf, len,
-                                                      PTEFlags::R | PTEFlags::U | PTEFlags::V) {
+                                                      PTEFlags::R) {
             file.write(
                 UserBuffer::new(buffers)
             ) as isize
         } else {
+            // println!("Error: access invalid address when write.");
+            // exit_current_and_run_next(-1);
             -1
         }
 
@@ -44,9 +46,16 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
         let file = entry.file.clone();
         // release Task lock manually to avoid deadlock
         drop(inner);
-        file.read(
-            UserBuffer::new(translated_byte_buffer(token, buf, len, PTEFlags::empty()).unwrap())
-        ) as isize
+        if let Some(buffers) = translated_byte_buffer(token, buf, len, PTEFlags::W) {
+            file.read(
+                UserBuffer::new(buffers)
+            ) as isize
+        } else {
+            // println!("Error: access invalid address when read.");
+            // exit_current_and_run_next(-1);
+            -1
+        }
+
     } else {
         -1
     }
@@ -61,15 +70,15 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
     inner.fd_table[read_fd] = Some(FdTableEntry::new(pipe_read, u32::MAX));
     let write_fd = inner.alloc_fd();
     inner.fd_table[write_fd] = Some(FdTableEntry::new(pipe_write, u32::MAX));
-    *translated_refmut(token, pipe) = read_fd;
-    *translated_refmut(token, unsafe { pipe.add(1) }) = write_fd;
+    *(translated_refmut(token, pipe, PTEFlags::empty()).unwrap()) = read_fd;
+    *(translated_refmut(token, unsafe { pipe.add(1) }, PTEFlags::empty()).unwrap()) = write_fd;
     0
 }
 
 pub fn sys_open(dirfd: usize, path: *const u8, flags: u32, mode: u32) -> isize {
     let task = current_task().unwrap();
     let token = current_user_token();
-    let path = translated_str(token, path);
+    let path = translated_str(token, path, PTEFlags::empty());
     if let Some(inode) = open_file(
         path.as_str(),
         OpenFlags::from_bits(flags).unwrap()
@@ -114,14 +123,14 @@ pub fn sys_dup(fd: usize) -> isize {
 
 pub fn sys_unlinkat(dirfd: isize, path: *const u8, flags: usize) -> isize {
     let token = current_user_token();
-    let path = translated_str(token, path);
+    let path = translated_str(token, path, PTEFlags::empty());
     unlinkat(path.as_str())
 }
 
 pub fn sys_linkat(olddirfd: isize, oldpath: *const u8, newdirfd: isize, newpath: *const u8, flags: usize) -> isize {
     let token = current_user_token();
-    let oldpath = translated_str(token, oldpath);
-    let newpath = translated_str(token, newpath);
+    let oldpath = translated_str(token, oldpath, PTEFlags::empty());
+    let newpath = translated_str(token, newpath, PTEFlags::empty());
     if oldpath == newpath {
         return -1;
     }
@@ -134,11 +143,18 @@ pub fn sys_fstat(fd: isize, st: *mut Stat) -> isize {
     let mut inner = task.acquire_inner_lock();
     if let Some(entry) = &inner.fd_table[fd as usize] {
         let inode_id = entry.inode;
-        let mut st = translated_refmut(token, st);
-        st.dev = 0;
-        st.ino = inode_id as u64;
-        st.mode = StatMode::FILE;
-        st.nlink = count_link(st.ino as usize) as u32;
+        let mut translated_st;
+        if let Some(tmp_st) = translated_refmut(token, st, PTEFlags::W) {
+            translated_st = tmp_st;
+        } else {
+            // println!("Error: access invalid address when fstat.");
+            // exit_current_and_run_next(-1);
+            return -1;
+        }
+        translated_st.dev = 0;
+        translated_st.ino = inode_id as u64;
+        translated_st.mode = StatMode::FILE;
+        translated_st.nlink = count_link(translated_st.ino as usize) as u32;
         0
     } else {
         -1

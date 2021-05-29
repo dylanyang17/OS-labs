@@ -1,4 +1,4 @@
-use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr, translated_refmut};
+use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr, translated_refmut, PTEFlags};
 use crate::trap::{TrapContext, trap_handler};
 use crate::config::{TRAP_CONTEXT};
 use super::TaskContext;
@@ -143,8 +143,9 @@ impl TaskControlBlock {
             .map(|arg| {
                 translated_refmut(
                     memory_set.token(),
-                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize
-                )
+                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize,
+                    PTEFlags::empty()
+                ).unwrap()
             })
             .collect();
         *argv[args.len()] = 0;
@@ -153,10 +154,10 @@ impl TaskControlBlock {
             *argv[i] = user_sp;
             let mut p = user_sp;
             for c in args[i].as_bytes() {
-                *translated_refmut(memory_set.token(), p as *mut u8) = *c;
+                *(translated_refmut(memory_set.token(), p as *mut u8, PTEFlags::empty()).unwrap()) = *c;
                 p += 1;
             }
-            *translated_refmut(memory_set.token(), p as *mut u8) = 0;
+            *(translated_refmut(memory_set.token(), p as *mut u8, PTEFlags::empty()).unwrap()) = 0;
         }
         // make the user_sp aligned to 8B for k210 platform
         user_sp -= user_sp % core::mem::size_of::<usize>();

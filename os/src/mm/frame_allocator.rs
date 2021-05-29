@@ -69,10 +69,6 @@ impl FrameAllocator for StackFrameAllocator {
                 unsafe {
                     // debug: 这里一定要去除 lock
                     FRAME_ALLOCATOR.force_unlock();
-                    let task = current_task().unwrap();
-                    if task.is_inner_locked() {
-                        current_task().unwrap().force_unlock_inner();  // Note: 可能有问题？
-                    }
                 }
                 exit_current_and_run_next(-1);
                 None

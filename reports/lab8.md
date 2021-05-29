@@ -31,17 +31,19 @@ let frame = frame_alloc().unwrap();
 但是这样一来会出现问题——之前在栈上分配的锁得不到解锁，从而造成死锁，这里使用一个不太安全的做法：
 
 ```rust
+// mm/frame_allocator.rs
 if self.current == self.end {
     unsafe {
         FRAME_ALLOCATOR.force_unlock();
-        let task = current_task().unwrap();
-        if task.is_inner_locked() {
-            current_task().unwrap().force_unlock_inner();
-        }
     }
     exit_current_and_run_next(-1);
     None
 } 
+
+// task/mod.rs exit_current_and_run_next
+if task.is_inner_locked() {
+    task.force_unlock_inner();
+}
 ```
 
 即强制将 FRAME_ALLOCATOR 和 task inner 解锁。
@@ -310,5 +312,36 @@ Shell: Process 72 exited with code 0
 
 ![ch8_01_output](res/lab8/ch8_01_output.png)
 
-## 
+## ch8_03
 
+### 运行和分析
+
+出现错误：
+
+```
+[rustsbi-panic] hart 0 panicked at 'invalid instruction, mepc: 00000000000001e8, instruction: 0000000000330000', platform/qemu/src/main.rs:458:17
+[rustsbi-panic] system shutdown scheduled due to RustSBI panic
+```
+
+可以发现，用户代码中对不可写入的代码段进行了写入操作，解决方案很简单，只需要在 translate 的过程中增加一个参数 `flags_needed: PTEFlags`，并用于权限检查即可。
+
+### 编程实现
+
+在 translate 相关函数中加上语句：
+
+```rust
+if (pte.flags() & flags_needed) != flags_needed {
+    // flags are not satisfied
+    return None;
+}
+```
+
+并且对 translate 相关的函数返回类型均套一层 `Option<>`，并在外层进行处理即可。
+
+这里调用 fstat 和 read 时需要的 flag 均为 `PTEFlag:W`，判断在不满足条件的情况下不进行写入。
+
+运行结果如下：
+
+![ch8_03_output](res/lab8/ch8_03_output.png)
+
+同样运行了 ch2_hello_world 以确保没有崩溃。

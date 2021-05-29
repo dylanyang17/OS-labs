@@ -53,14 +53,14 @@ pub fn sys_fork() -> isize {
 
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
-    let path = translated_str(token, path);
+    let path = translated_str(token, path, PTEFlags::empty());
     let mut args_vec: Vec<String> = Vec::new();
     loop {
-        let arg_str_ptr = *translated_ref(token, args);
+        let arg_str_ptr = *(translated_ref(token, args, PTEFlags::empty()).unwrap());
         if arg_str_ptr == 0 {
             break;
         }
-        args_vec.push(translated_str(token, arg_str_ptr as *const u8));
+        args_vec.push(translated_str(token, arg_str_ptr as *const u8, PTEFlags::empty()));
         unsafe { args = args.add(1); }
     }
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
@@ -77,7 +77,7 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 
 pub fn sys_spawn(path: *const u8) -> isize {
     let token = current_user_token();
-    let path = translated_str(token, path);
+    let path = translated_str(token, path, PTEFlags::empty());
 
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let all_data = app_inode.read_all();
@@ -129,7 +129,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         // ++++ temporarily hold child lock
         let exit_code = child.acquire_inner_lock().exit_code;
         // ++++ release child PCB lock
-        *translated_refmut(inner.memory_set.token(), exit_code_ptr) = exit_code;
+        *(translated_refmut(inner.memory_set.token(), exit_code_ptr, PTEFlags::empty()).unwrap()) = exit_code;
         found_pid as isize
     } else {
         -2

@@ -1,16 +1,6 @@
 
 use virtio_drivers::{VirtIOBlk, VirtIOHeader};
-use crate::mm::{
-    PhysAddr,
-    VirtAddr,
-    frame_alloc,
-    frame_dealloc,
-    PhysPageNum,
-    FrameTracker,
-    StepByOne,
-    PageTable,
-    kernel_token,
-};
+use crate::mm::{PhysAddr, VirtAddr, frame_alloc, frame_dealloc, PhysPageNum, FrameTracker, StepByOne, PageTable, kernel_token, PTEFlags};
 use super::BlockDevice;
 use spin::Mutex;
 use alloc::vec::Vec;
@@ -72,5 +62,5 @@ pub extern "C" fn virtio_phys_to_virt(paddr: PhysAddr) -> VirtAddr {
 
 #[no_mangle]
 pub extern "C" fn virtio_virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
-    PageTable::from_token(kernel_token()).translate_va(vaddr).unwrap()
+    PageTable::from_token(kernel_token()).translate_va(vaddr, PTEFlags::empty()).unwrap()
 }

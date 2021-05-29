@@ -135,16 +135,27 @@ impl PageTable {
         self.find_pte(vpn)
             .map(|pte| {pte.clone()})
     }
-    pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
-        self.find_pte(va.clone().floor())
+    pub fn translate_va(&self, va: VirtAddr, flags_needed: PTEFlags) -> Option<PhysAddr> {
+        // flags_needed only check URWXV
+        let flags_needed = flags_needed & (PTEFlags::R | PTEFlags::W | PTEFlags::X | PTEFlags::U | PTEFlags::V);
+        let tmp = self.find_pte(va.clone().floor())
             .map(|pte| {
-                //println!("translate_va:va = {:?}", va);
+                // println!("translate_va:va = {:?} flags_needed: {} flags: {}", va, flags_needed.bits, pte.flags().bits);
+                if (pte.flags() & flags_needed) != flags_needed {
+                    // flags are not satisfied
+                    return None;
+                }
                 let aligned_pa: PhysAddr = pte.ppn().into();
                 //println!("translate_va:pa_align = {:?}", aligned_pa);
                 let offset = va.page_offset();
                 let aligned_pa_usize: usize = aligned_pa.into();
-                (aligned_pa_usize + offset).into()
-            })
+                Some((aligned_pa_usize + offset).into())
+            });
+        if tmp.is_none() {
+            None
+        } else {
+            return tmp.unwrap();
+        }
     }
     pub fn token(&self) -> usize {
         8usize << 60 | self.root_ppn.0
@@ -153,7 +164,7 @@ impl PageTable {
 
 pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize, flags_needed: PTEFlags) -> Option<Vec<&'static mut [u8]>> {
     // flags_needed only check URWXV
-    let flags_needed = flags_needed & PTEFlags::R & PTEFlags::W & PTEFlags::X & PTEFlags::U & PTEFlags::V;
+    let flags_needed = flags_needed & (PTEFlags::R | PTEFlags::W | PTEFlags::X | PTEFlags::U | PTEFlags::V);
     let page_table = PageTable::from_token(token);
     let mut start = ptr as usize;
     let end = start + len;
@@ -188,12 +199,12 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize, flags_ne
     Some(v)
 }
 
-pub fn translated_str(token: usize, ptr: *const u8) -> String {
+pub fn translated_str(token: usize, ptr: *const u8, flags_needed: PTEFlags) -> String {
     let page_table = PageTable::from_token(token);
     let mut string = String::new();
     let mut va = ptr as usize;
     loop {
-        let ch: u8 = *(page_table.translate_va(VirtAddr::from(va)).unwrap().get_mut());
+        let ch: u8 = *(page_table.translate_va(VirtAddr::from(va), flags_needed).unwrap().get_mut());
         if ch == 0 {
             break;
         } else {
@@ -204,17 +215,25 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
     string
 }
 
-pub fn translated_ref<T>(token: usize, ptr: *const T) -> &'static T {
+pub fn translated_ref<T>(token: usize, ptr: *const T, flags_needed: PTEFlags) -> Option<&'static T> {
     let page_table = PageTable::from_token(token);
-    page_table.translate_va(VirtAddr::from(ptr as usize)).unwrap().get_ref()
+    if let Some(va) = page_table.translate_va(VirtAddr::from(ptr as usize), flags_needed) {
+        Some(va.get_ref())
+    } else {
+        None
+    }
 }
 
-pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
+pub fn translated_refmut<T>(token: usize, ptr: *mut T, flags_needed: PTEFlags) -> Option<&'static mut T> {
     //println!("into translated_refmut!");
     let page_table = PageTable::from_token(token);
     let va = ptr as usize;
     //println!("translated_refmut: before translate_va");
-    page_table.translate_va(VirtAddr::from(va)).unwrap().get_mut()
+    if let Some(va) = page_table.translate_va(VirtAddr::from(va), flags_needed) {
+        Some(va.get_mut())
+    } else {
+        None
+    }
 }
 
 pub struct UserBuffer {
