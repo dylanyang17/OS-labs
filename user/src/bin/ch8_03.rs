@@ -16,7 +16,7 @@ pub unsafe fn main() -> i32 {
     raw_sys_gettime(time, 0);
     let fd = open("fname1-ch8_03\0", OpenFlags::CREATE | OpenFlags::WRONLY);
     let stat: *const Stat = (get_pc() + 8) as *mut _;
-    // raw_sys_fstat(fd as usize, stat);
+    raw_sys_fstat(fd as usize, stat);
     read(
         STDIN,
         slice::from_raw_parts_mut((get_pc() + 6) as *mut _, 10),

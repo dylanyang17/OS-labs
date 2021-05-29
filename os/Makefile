@@ -62,6 +62,7 @@ kernel:
 
 clean:
 	@cargo clean
+	@rm $(FS_IMG)
 
 disasm: kernel
 	@$(OBJDUMP) $(DISASM) $(KERNEL_ELF) | less

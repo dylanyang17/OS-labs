@@ -20,7 +20,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         // release Task lock manually to avoid deadlock
         drop(inner);
         if let Some(buffers) = translated_byte_buffer(token, buf, len,
-                                                      PTEFlags::R) {
+                                                      PTEFlags::R | PTEFlags::U) {
             file.write(
                 UserBuffer::new(buffers)
             ) as isize
@@ -46,7 +46,7 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
         let file = entry.file.clone();
         // release Task lock manually to avoid deadlock
         drop(inner);
-        if let Some(buffers) = translated_byte_buffer(token, buf, len, PTEFlags::W) {
+        if let Some(buffers) = translated_byte_buffer(token, buf, len, PTEFlags::W | PTEFlags::U) {
             file.read(
                 UserBuffer::new(buffers)
             ) as isize
@@ -144,7 +144,7 @@ pub fn sys_fstat(fd: isize, st: *mut Stat) -> isize {
     if let Some(entry) = &inner.fd_table[fd as usize] {
         let inode_id = entry.inode;
         let mut translated_st;
-        if let Some(tmp_st) = translated_refmut(token, st, PTEFlags::W) {
+        if let Some(tmp_st) = translated_refmut(token, st, PTEFlags::W | PTEFlags::U) {
             translated_st = tmp_st;
         } else {
             // println!("Error: access invalid address when fstat.");

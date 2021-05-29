@@ -1,11 +1,15 @@
 use buddy_system_allocator::LockedHeap;
 use crate::config::KERNEL_HEAP_SIZE;
+use crate::task::exit_current_and_run_next;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
+    // unsafe { HEAP_ALLOCATOR.force_unlock(); }
+    // exit_current_and_run_next(-1);
+    // panic!("Cannot reach.");
     panic!("Heap allocation error, layout = {:?}", layout);
 }
 

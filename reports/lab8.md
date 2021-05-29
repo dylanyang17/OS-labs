@@ -323,7 +323,9 @@ Shell: Process 72 exited with code 0
 [rustsbi-panic] system shutdown scheduled due to RustSBI panic
 ```
 
-可以发现，用户代码中对不可写入的代码段进行了写入操作，解决方案很简单，只需要在 translate 的过程中增加一个参数 `flags_needed: PTEFlags`，并用于权限检查即可。
+可以发现，第一个 fstat 和 read 中用户代码中对不可写入的代码段进行了写入操作，而第二个 fstat 对可写入但不属于用户态可操作的地址进行了写入操作。
+
+解决方案很简单，只需要在 translate 的过程中增加一个参数 `flags_needed: PTEFlags`，并用于权限检查即可。
 
 ### 编程实现
 
@@ -338,7 +340,7 @@ if (pte.flags() & flags_needed) != flags_needed {
 
 并且对 translate 相关的函数返回类型均套一层 `Option<>`，并在外层进行处理即可。
 
-这里调用 fstat 和 read 时需要的 flag 均为 `PTEFlag:W`，判断在不满足条件的情况下不进行写入。
+这里调用 fstat 和 read 时需要的 flag 均为 `PTEFlag:W | PTEFlag:U`，判断在不满足条件的情况下不进行写入。
 
 运行结果如下：
 
