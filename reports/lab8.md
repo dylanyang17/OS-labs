@@ -347,3 +347,6 @@ if (pte.flags() & flags_needed) != flags_needed {
 ![ch8_03_output](res/lab8/ch8_03_output.png)
 
 同样运行了 ch2_hello_world 以确保没有崩溃。
+
+
+【当连续运行 ch7_usertest 和 ch8_01 会出现死锁，考虑 1：再 de 一下 bug 2：fork再修修：判断一下剩余量】
