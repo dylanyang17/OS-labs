@@ -115,8 +115,15 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
             // ++++ release child PCB lock
         });
     if let Some((idx, _)) = pair {
-        let child = inner.children.remove(idx);
+        let mut child = inner.children.remove(idx);
         // confirm that child will be deallocated after removing from children list
+        unsafe {
+            while Arc::strong_count(&child) > 1 {
+                let raw = Arc::into_raw(child);
+                Arc::decr_strong_count(raw);
+                child = Arc::from_raw(raw);
+            }
+        }
         assert_eq!(Arc::strong_count(&child), 1);
         let found_pid = child.getpid();
         // ++++ temporarily hold child lock

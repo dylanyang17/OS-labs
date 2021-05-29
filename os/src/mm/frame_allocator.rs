@@ -4,6 +4,8 @@ use spin::Mutex;
 use crate::config::MEMORY_END;
 use lazy_static::*;
 use core::fmt::{self, Debug, Formatter};
+use crate::task::{exit_current_and_run_next, current_task, take_current_task};
+use alloc::sync::Arc;
 
 pub struct FrameTracker {
     pub ppn: PhysPageNum,
@@ -64,6 +66,15 @@ impl FrameAllocator for StackFrameAllocator {
             Some(ppn.into())
         } else {
             if self.current == self.end {
+                unsafe {
+                    // debug: 这里一定要去除 lock
+                    FRAME_ALLOCATOR.force_unlock();
+                    let task = current_task().unwrap();
+                    if task.is_inner_locked() {
+                        current_task().unwrap().force_unlock_inner();  // Note: 可能有问题？
+                    }
+                }
+                exit_current_and_run_next(-1);
                 None
             } else {
                 self.current += 1;

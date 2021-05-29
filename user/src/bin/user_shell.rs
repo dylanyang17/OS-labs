@@ -13,15 +13,7 @@ const BS: u8 = 0x08u8;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use user_lib::{
-    fork,
-    exec,
-    waitpid,
-    open,
-    OpenFlags,
-    close,
-    dup,
-};
+use user_lib::{fork, exec, waitpid, open, OpenFlags, close, dup, sleep};
 use user_lib::console::getchar;
 
 #[no_mangle]
@@ -118,6 +110,7 @@ pub fn main() -> i32 {
                         println!("Shell: Process {} exited with code {}", pid, exit_code);
                     }
                     line.clear();
+                    sleep(1000);
                 }
                 print!(">> ");
             }

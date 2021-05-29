@@ -48,7 +48,13 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor
     let task = take_current_task().unwrap();
+    let pid = task.pid.0;
+    // println!("exit_current_and_run_next! pid: {}", pid);
     // **** hold current PCB lock
+
+    if task.is_inner_locked() {
+        println!("????");
+    }
     let mut inner = task.acquire_inner_lock();
     // Change status to Zombie
     inner.task_status = TaskStatus::Zombie;
@@ -58,14 +64,19 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
     // ++++++ hold initproc PCB lock here
     {
+        if INITPROC.is_inner_locked() {
+            println!("????INITPROC");
+        }
         let mut initproc_inner = INITPROC.acquire_inner_lock();
         for child in inner.children.iter() {
+            if child.is_inner_locked() {
+                println!("????child");
+            }
             child.acquire_inner_lock().parent = Some(Arc::downgrade(&INITPROC));
             initproc_inner.children.push(child.clone());
         }
     }
     // ++++++ release parent PCB lock here
-
     inner.children.clear();
     // deallocate user space
     inner.memory_set.recycle_data_pages();
