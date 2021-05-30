@@ -55,6 +55,13 @@ impl MemorySet {
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
+    pub fn get_frame_num(&self) -> usize {
+        let mut ret = self.page_table.get_frame_num();
+        for x in self.areas.iter() {
+            ret += x.vpn_range.get_end().0 - x.vpn_range.get_start().0;
+        }
+        ret
+    }
     /// Assume that no conflicts.
     pub fn insert_framed_area(&mut self, start_va: VirtAddr, end_va: VirtAddr, permission: MapPermission) {
         self.push(MapArea::new(

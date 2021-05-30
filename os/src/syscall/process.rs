@@ -39,16 +39,21 @@ pub fn sys_getpid() -> isize {
 
 pub fn sys_fork() -> isize {
     let current_task = current_task().unwrap();
-    let new_task = current_task.fork();
-    let new_pid = new_task.pid.0;
-    // modify trap context of new_task, because it returns immediately after switching
-    let trap_cx = new_task.acquire_inner_lock().get_trap_cx();
-    // we do not have to move to next instruction since we have done it before
-    // for child process, fork returns 0
-    trap_cx.x[10] = 0;
-    // add new task to scheduler
-    add_task(new_task);
-    new_pid as isize
+    // println!("start fork. pid: {}", current_task.pid.0);
+    if let Some(new_task) = current_task.fork() {
+        let new_pid = new_task.pid.0;
+        // modify trap context of new_task, because it returns immediately after switching
+        let trap_cx = new_task.acquire_inner_lock().get_trap_cx();
+        // we do not have to move to next instruction since we have done it before
+        // for child process, fork returns 0
+        trap_cx.x[10] = 0;
+        // add new task to scheduler
+        add_task(new_task);
+        // println!("end fork. pid: {}  new pid: {}", current_task.pid.0, new_pid);
+        new_pid as isize
+    } else {
+        -1
+    }
 }
 
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
@@ -117,13 +122,13 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     if let Some((idx, _)) = pair {
         let mut child = inner.children.remove(idx);
         // confirm that child will be deallocated after removing from children list
-        unsafe {
-            while Arc::strong_count(&child) > 1 {
-                let raw = Arc::into_raw(child);
-                Arc::decr_strong_count(raw);
-                child = Arc::from_raw(raw);
-            }
-        }
+        // unsafe {
+        //     while Arc::strong_count(&child) > 1 {
+        //         let raw = Arc::into_raw(child);
+        //         Arc::decr_strong_count(raw);
+        //         child = Arc::from_raw(raw);
+        //     }
+        // }
         assert_eq!(Arc::strong_count(&child), 1);
         let found_pid = child.getpid();
         // ++++ temporarily hold child lock

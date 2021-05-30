@@ -43,6 +43,7 @@ trait FrameAllocator {
 pub struct StackFrameAllocator {
     current: usize,
     end: usize,
+    remaining: usize,
     recycled: Vec<usize>,
 }
 
@@ -50,6 +51,7 @@ impl StackFrameAllocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
+        self.remaining = self.end - self.current;
         println!("last {} Physical Frames.", self.end - self.current);
     }
 }
@@ -58,19 +60,22 @@ impl FrameAllocator for StackFrameAllocator {
         Self {
             current: 0,
             end: 0,
+            remaining: 0,
             recycled: Vec::new(),
         }
     }
     fn alloc(&mut self) -> Option<PhysPageNum> {
+        self.remaining -= 1;
         if let Some(ppn) = self.recycled.pop() {
             Some(ppn.into())
         } else {
             if self.current == self.end {
-                unsafe {
-                    // debug: 这里一定要去除 lock
-                    FRAME_ALLOCATOR.force_unlock();
-                }
-                exit_current_and_run_next(-1);
+                panic!("no remaining frame.");
+                // unsafe {
+                //     // debug: 这里一定要去除 lock
+                //     FRAME_ALLOCATOR.force_unlock();
+                // }
+                // exit_current_and_run_next(-1);
                 None
             } else {
                 self.current += 1;
@@ -89,6 +94,7 @@ impl FrameAllocator for StackFrameAllocator {
         }
         // recycle
         self.recycled.push(ppn);
+        self.remaining += 1;
     }
 }
 
@@ -119,6 +125,10 @@ pub fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR
         .lock()
         .dealloc(ppn);
+}
+
+pub fn frame_remaining() -> usize {
+    FRAME_ALLOCATOR.lock().remaining
 }
 
 #[allow(unused)]

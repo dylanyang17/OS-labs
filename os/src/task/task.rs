@@ -1,6 +1,6 @@
-use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr, translated_refmut, PTEFlags};
+use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr, translated_refmut, PTEFlags, frame_remaining};
 use crate::trap::{TrapContext, trap_handler};
-use crate::config::{TRAP_CONTEXT};
+use crate::config::{TRAP_CONTEXT, KERNEL_STACK_SIZE, PAGE_SIZE};
 use super::TaskContext;
 use super::{PidHandle, pid_alloc, KernelStack};
 use alloc::sync::{Weak, Arc};
@@ -9,6 +9,7 @@ use spin::{Mutex, MutexGuard};
 use crate::fs::{File, Stdout, Stdin, MailBox};
 use alloc::vec::Vec;
 use alloc::string::String;
+use buddy_system_allocator::FrameAllocator;
 
 pub struct TaskControlBlock {
     // immutable
@@ -181,58 +182,64 @@ impl TaskControlBlock {
         *inner.get_trap_cx() = trap_cx;
         // **** release current PCB lock
     }
-    pub fn fork(self: &Arc<TaskControlBlock>) -> Arc<TaskControlBlock> {
+    pub fn fork(self: &Arc<TaskControlBlock>) -> Option<Arc<TaskControlBlock>> {
         // ---- hold parent PCB lock
         let mut parent_inner = self.acquire_inner_lock();
-        // copy user space(include trap context)
-        let memory_set = MemorySet::from_existed_user(
-            &parent_inner.memory_set
-        );
-        let trap_cx_ppn = memory_set
-            .translate(VirtAddr::from(TRAP_CONTEXT).into())
-            .unwrap()
-            .ppn();
-        // alloc a pid and a kernel stack in kernel space
-        let pid_handle = pid_alloc();
-        let kernel_stack = KernelStack::new(&pid_handle);
-        let kernel_stack_top = kernel_stack.get_top();
-        // push a goto_trap_return task_cx on the top of kernel stack
-        let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return());
-        // copy fd table
-        let mut new_fd_table: Vec<Option<FdTableEntry>> = Vec::new();
-        for fd in parent_inner.fd_table.iter() {
-            if let Some(ent) = fd {
-                new_fd_table.push(Some(FdTableEntry::new(ent.file.clone(), ent.inode)));
-            } else {
-                new_fd_table.push(None);
+        // println!("start -> remaining: {} needed: {}", frame_remaining(), KERNEL_STACK_SIZE / PAGE_SIZE + parent_inner.memory_set.get_frame_num());
+        if frame_remaining() < KERNEL_STACK_SIZE / PAGE_SIZE + parent_inner.memory_set.get_frame_num() {  // KERNEL + PARENT (Trampoline and page table are included)
+            None
+        } else {
+            // copy user space(include trap context)
+            let memory_set = MemorySet::from_existed_user(
+                &parent_inner.memory_set
+            );
+            let trap_cx_ppn = memory_set
+                .translate(VirtAddr::from(TRAP_CONTEXT).into())
+                .unwrap()
+                .ppn();
+            // alloc a pid and a kernel stack in kernel space
+            let pid_handle = pid_alloc();
+            let kernel_stack = KernelStack::new(&pid_handle);
+            let kernel_stack_top = kernel_stack.get_top();
+            // push a goto_trap_return task_cx on the top of kernel stack
+            let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return());
+            // copy fd table
+            let mut new_fd_table: Vec<Option<FdTableEntry>> = Vec::new();
+            for fd in parent_inner.fd_table.iter() {
+                if let Some(ent) = fd {
+                    new_fd_table.push(Some(FdTableEntry::new(ent.file.clone(), ent.inode)));
+                } else {
+                    new_fd_table.push(None);
+                }
             }
+            let task_control_block = Arc::new(TaskControlBlock {
+                pid: pid_handle,
+                kernel_stack,
+                inner: Mutex::new(TaskControlBlockInner {
+                    trap_cx_ppn,
+                    base_size: parent_inner.base_size,
+                    task_cx_ptr: task_cx_ptr as usize,
+                    task_status: TaskStatus::Ready,
+                    memory_set,
+                    parent: Some(Arc::downgrade(self)),
+                    children: Vec::new(),
+                    exit_code: 0,
+                    fd_table: new_fd_table,
+                    mail_box: MailBox::new(),
+                }),
+            });
+            // add child
+            parent_inner.children.push(task_control_block.clone());
+            // modify kernel_sp in trap_cx
+            // **** acquire child PCB lock
+            let trap_cx = task_control_block.acquire_inner_lock().get_trap_cx();
+            // **** release child PCB lock
+            trap_cx.kernel_sp = kernel_stack_top;
+            // return
+            // println!("end -> remaining: {}", frame_remaining());
+            Some(task_control_block)
+            // ---- release parent PCB lock
         }
-        let task_control_block = Arc::new(TaskControlBlock {
-            pid: pid_handle,
-            kernel_stack,
-            inner: Mutex::new(TaskControlBlockInner {
-                trap_cx_ppn,
-                base_size: parent_inner.base_size,
-                task_cx_ptr: task_cx_ptr as usize,
-                task_status: TaskStatus::Ready,
-                memory_set,
-                parent: Some(Arc::downgrade(self)),
-                children: Vec::new(),
-                exit_code: 0,
-                fd_table: new_fd_table,
-                mail_box: MailBox::new(),
-            }),
-        });
-        // add child
-        parent_inner.children.push(task_control_block.clone());
-        // modify kernel_sp in trap_cx
-        // **** acquire child PCB lock
-        let trap_cx = task_control_block.acquire_inner_lock().get_trap_cx();
-        // **** release child PCB lock
-        trap_cx.kernel_sp = kernel_stack_top;
-        // return
-        task_control_block
-        // ---- release parent PCB lock
     }
     pub fn spawn(&self, elf_data: &[u8]) -> Arc<TaskControlBlock> {
         // ---- hold parent PCB lock

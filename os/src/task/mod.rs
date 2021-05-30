@@ -52,13 +52,9 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // println!("exit_current_and_run_next! pid: {}", pid);
     // **** hold current PCB lock
 
-    if task.is_inner_locked() {
-        task.force_unlock_inner();  // Note: 可能有问题？
-    }
-
-    if task.is_inner_locked() {
-        println!("????");
-    }
+    // if task.is_inner_locked() {
+    //     task.force_unlock_inner();  // Note: 可能有问题？
+    // }
 
     let mut inner = task.acquire_inner_lock();
     // Change status to Zombie
@@ -69,14 +65,8 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
     // ++++++ hold initproc PCB lock here
     {
-        if INITPROC.is_inner_locked() {
-            println!("????INITPROC");
-        }
         let mut initproc_inner = INITPROC.acquire_inner_lock();
         for child in inner.children.iter() {
-            if child.is_inner_locked() {
-                println!("????child");
-            }
             child.acquire_inner_lock().parent = Some(Arc::downgrade(&INITPROC));
             initproc_inner.children.push(child.clone());
         }

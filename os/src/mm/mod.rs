@@ -8,7 +8,7 @@ pub use page_table::{PageTable};
 pub use address::{VPNRange, StepByOne};
 pub use page_table::PTEFlags;
 pub use address::{PhysAddr, VirtAddr, PhysPageNum, VirtPageNum};
-pub use frame_allocator::{FrameTracker, frame_alloc, frame_dealloc};
+pub use frame_allocator::{FrameTracker, frame_alloc, frame_dealloc, frame_remaining};
 pub use page_table::{
     PageTableEntry,
     translated_byte_buffer,

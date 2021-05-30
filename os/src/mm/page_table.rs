@@ -76,6 +76,9 @@ impl PageTable {
             frames: vec![frame],
         }
     }
+    pub fn get_frame_num(&self) -> usize {
+        self.frames.len()
+    }
     /// Temporarily used to get arguments from user space.
     pub fn from_token(satp: usize) -> Self {
         Self {
