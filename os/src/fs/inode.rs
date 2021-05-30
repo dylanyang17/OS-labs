@@ -11,6 +11,8 @@ use spin::Mutex;
 use super::File;
 use crate::mm::UserBuffer;
 
+const NAME_LENGTH_LIMIT: usize = 27;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct Stat {
@@ -130,7 +132,9 @@ pub fn unlinkat(path: &str) -> isize {
 }
 
 pub fn linkat(oldpath: &str, newpath: &str) -> isize {
-    if let Some(inode) = ROOT_INODE.find(oldpath) {
+    if let Some(inode) = ROOT_INODE.find(newpath) {
+        -1
+    } else if let Some(inode) = ROOT_INODE.find(oldpath) {
         let inode_id = inode.get_inode_id();
         ROOT_INODE.link(newpath, inode_id as u32)
     } else {
@@ -139,6 +143,9 @@ pub fn linkat(oldpath: &str, newpath: &str) -> isize {
 }
 
 pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
+    if name.len() > NAME_LENGTH_LIMIT {
+        return None;
+    }
     let (readable, writable) = flags.read_write();
     if flags.contains(OpenFlags::CREATE) {
         if let Some(inode) = ROOT_INODE.find(name) {

@@ -46,16 +46,19 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
         let file = entry.file.clone();
         // release Task lock manually to avoid deadlock
         drop(inner);
-        if let Some(buffers) = translated_byte_buffer(token, buf, len, PTEFlags::W | PTEFlags::U) {
-            file.read(
-                UserBuffer::new(buffers)
-            ) as isize
-        } else {
-            // println!("Error: access invalid address when read.");
-            // exit_current_and_run_next(-1);
+        if !file.readable() {
             -1
+        } else {
+            if let Some(buffers) = translated_byte_buffer(token, buf, len, PTEFlags::W | PTEFlags::U) {
+                file.read(
+                    UserBuffer::new(buffers)
+                ) as isize
+            } else {
+                // println!("Error: access invalid address when read.");
+                // exit_current_and_run_next(-1);
+                -1
+            }
         }
-
     } else {
         -1
     }
@@ -141,6 +144,9 @@ pub fn sys_fstat(fd: isize, st: *mut Stat) -> isize {
     let task = current_task().unwrap();
     let token = current_user_token();
     let mut inner = task.acquire_inner_lock();
+    if fd >= inner.fd_table.len() as isize {
+        return -1;
+    }
     if let Some(entry) = &inner.fd_table[fd as usize] {
         let inode_id = entry.inode;
         let mut translated_st;

@@ -24,6 +24,8 @@ let frame = frame_alloc().unwrap();
 
 ### 编程实现
 
+为了方便展示，在 user_shell 代码中增加每次输入回车则暂停 1 秒的语句。
+
 关键部分代码如下：
 
 ```rust
@@ -413,6 +415,29 @@ Shell: Process 114 exited with code 0
 
 ![ch8_01_output](res/lab8/ch8_01_output.png)
 
+## ch8_02
+
+### 运行和分析
+
+同 ch8_01，仍然是出现了 frame 不足的问题，只需要在 mmap 中加入剩余量不足以分配时返回 -1 的判断即可。
+
+### 编程实现
+
+如下所示：
+
+```rust
+// mm/memory_set.rs MemorySet::mmap
+if len / PAGE_SIZE > frame_remaining() {
+    return -1;
+}
+```
+
+运行结果：
+
+![ch8_02_output](res/lab8/ch8_02_output.png)
+
+同样运行了 ch2_hello_world 确保没有崩溃。
+
 ## ch8_03
 
 ### 运行和分析
@@ -446,5 +471,102 @@ if (pte.flags() & flags_needed) != flags_needed {
 运行结果如下：
 
 ![ch8_03_output](res/lab8/ch8_03_output.png)
+
+同样运行了 ch2_hello_world 以确保没有崩溃。
+
+
+## ch8_04
+
+### 问题 1
+
+运行看一下结果：
+
+```
+>> ch8_04
+GOOD LUCK
+[kernel] Panicked at src/fs/stdio.rs:39 Cannot read from stdout!
+```
+
+发现是在 read 时没有对 fd 进行可读性判断，加上判断即可，如下所示：
+
+```rust
+// syscall/fs.rs  sys_read
+if !file.readable() {
+    -1
+} 
+```
+
+### 问题 2
+
+可以看到接下来的几行 fd 很大，超出了 fd_table 大小，不过这个在之前的 lab 中已经得到了处理，类似如下：
+
+```rust
+if fd >= inner.fd_table.len() {
+    return -1;
+}
+```
+
+### 问题 3
+
+接下来将 0、1、2 都 close 掉了，所以 println! 将不会输出，这个很显然已经正确处理了。
+
+### 问题 4
+
+再运行，结果如下：
+
+```
+>> ch8_04
+GOOD LUCK
+[kernel] Panicked at /home/yyr/Work/labs-2017011071/easy-fs/src/layout.rs:421 range end index 60 out of range for slice of length 28
+```
+
+判断是文件名过长，只需要在 open 中加入判断即可：
+
+```rust
+// fs/inode.rs  open_file
+if name.len() > NAME_LENGTH_LIMIT {
+    return None;
+}
+```
+
+### 问题 5
+
+link 中存在 new_path 为已有文件名的情况，解决如下：
+
+```rust
+// fs/inode.rs  linkat
+if let Some(inode) = ROOT_INODE.find(newpath) {
+    -1
+}
+```
+
+另外 old_path 不存在和 old_path 与 new_path 相同等情况已经得到过处理。
+
+### 问题 6
+
+再次运行，发生如下错误：
+
+```
+[kernel] Panicked at src/syscall/fs.rs:147 index out of bounds: the len is 5 but the index is 313
+```
+
+即 fstat 没有对 fd 溢出进行处理，加上即可：
+
+```rust
+// syscall/fs.rs  sys_fstat
+if fd >= inner.fd_table.len() {
+    return -1;
+}
+```
+
+另外 fstat 对为 None 的 fd 在之前已经正确处理了。
+
+### 问题 7
+
+最后两行的 linkat 和 unlinkat 使用了不正常的目录 fd，但由于目前的实现中为扁平结构，只有顶层目录，而 fd 被忽略，所以这里不正常的 fd 并不会导致错误。
+
+### 运行结果
+
+![ch8_04_output](res/lab8/ch8_04_output.png)
 
 同样运行了 ch2_hello_world 以确保没有崩溃。

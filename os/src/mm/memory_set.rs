@@ -16,6 +16,7 @@ use crate::config::{
     USER_STACK_SIZE,
     MMIO,
 };
+use crate::mm::frame_remaining;
 
 extern "C" {
     fn stext();
@@ -83,6 +84,9 @@ impl MemorySet {
         let len = ((len - 1) / PAGE_SIZE + 1) * PAGE_SIZE;
         // println!("0x{:x} 0x{:x} 0x{:x}", start, len, prot);
         if start % PAGE_SIZE != 0 || (prot & 7) == 0 || (prot & (!7)) != 0 {
+            return -1;
+        }
+        if len / PAGE_SIZE > frame_remaining() {
             return -1;
         }
         let start_vpn = start/PAGE_SIZE;

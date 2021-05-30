@@ -25,7 +25,7 @@ pub unsafe fn main() -> i32 {
     close(2);
     println!("[ERROR]I need fuzzy ...");
     open(
-        "编程是一件危险的事情\0",
+        "1234567890123456789012345678901234567890\0",
         OpenFlags::CREATE | OpenFlags::WRONLY,
     );
     set_priority(-7);
