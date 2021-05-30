@@ -32,6 +32,11 @@ if frame_remaining() < KERNEL_STACK_SIZE / PAGE_SIZE + parent_inner.memory_set.g
     None
 } 
 
+// mm.frame_allocator.rs
+pub fn frame_remaining() -> usize {
+    FRAME_ALLOCATOR.lock().remaining
+}
+
 // mm/memory_set.rs  MemorySet::get_frame_num 
 pub fn get_frame_num(&self) -> usize {
     let mut ret = self.page_table.get_frame_num();
@@ -46,6 +51,8 @@ pub fn get_frame_num(&self) -> usize {
     self.frames.len()
 }
 ```
+
+注意需要在 alloc 和 dealloc 时分别对 FRAME_ALLOCATOR 的 remaing 进行加 1 和减 1 操作。
 
 运行结果如下：
 
